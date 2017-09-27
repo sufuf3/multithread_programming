@@ -44,6 +44,8 @@ use-models.h: models.inc Makefile
 	        -e 's/rectangular[0-9]/(\&&, \&rectangulars);/g' \
 	        -e 's/ = {//g' >> use-models.h
 
+run: $(EXEC)
+	./$^
 check: $(EXEC)
 	@./$(EXEC) && diff -u baseline.ppm out.ppm || (echo Fail; exit)
 	@echo "Verified OK"
