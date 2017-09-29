@@ -49,6 +49,9 @@ int main()
     printf("# Rendering scene\n");
     /* do the ray tracing with the given geometry */
     clock_gettime(CLOCK_REALTIME, &start);
+    //TODO
+    /*This is a domain function for this program.
+     * Please trace the parameter of it and create your threads to do the function*/
     raytracing(pixels, background,
                rectangulars, spheres, lights, &view, ROWS, COLS);
     clock_gettime(CLOCK_REALTIME, &end);

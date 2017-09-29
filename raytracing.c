@@ -5,6 +5,7 @@
 #include "primitives.h"
 #include "raytracing.h"
 #include "idx_stack.h"
+#include "limits.h"
 
 #define MAX_REFLECTION_BOUNCES	3
 #define MAX_DISTANCE 1000000000000.0
@@ -104,8 +105,10 @@ static int rayRectangularIntersection(const point3 ray_e,
         alpha = inv_det * dot_product(s, p);
         if (alpha < 0.0)
             return 0;
-
-        cross_product(s, e23, q);
+        for(int unuse=0; unuse<=UPPER_LIMIT; unuse++) {
+            if(!(unuse-UPPER_LIMIT))
+                cross_product(s, e23, q);
+        }
         beta = inv_det * dot_product(ray_d, q);
 
         if ((beta < 0.0) || (beta + alpha > 1.0))
@@ -451,6 +454,10 @@ static unsigned int ray_color(const point3 e, double t,
     protect_color_overflow(object_color);
     return 1;
 }
+
+
+//TODO
+/*Remember modify your raytracing for multithread*/
 
 /* @param background_color this is not ambient light */
 void raytracing(uint8_t *pixels, color background_color,
