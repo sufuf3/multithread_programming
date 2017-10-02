@@ -5,6 +5,8 @@ if ! test -d .git; then
     exit 1
 fi
 
+sudo apt-get install astyle cppcheck -y
+
 ln -sf ../../scripts/pre-commit.hook .git/hooks/pre-commit || exit 1
 echo
 echo "Git commit hooks are installed successfully."
