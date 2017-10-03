@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "math-toolkit.h"
 #include "primitives.h"
@@ -460,11 +461,9 @@ static unsigned int ray_color(const point3 e, double t,
 /*Remember modify your raytracing for multithread*/
 
 /* @param background_color this is not ambient light */
-void raytracing(uint8_t *pixels, color background_color,
-                rectangular_node rectangulars, sphere_node spheres,
-                light_node lights, const viewpoint *view,
-                int width, int height)
+void raytracing(void * rayarg)
 {
+    rayargs * r = ( rayargs *) rayarg;
     point3 u, v, w, d;
     color object_color = { 0.0, 0.0, 0.0 };
 
@@ -502,4 +501,22 @@ void raytracing(uint8_t *pixels, color background_color,
             }
         }
     }
+}
+rayargs * ray(uint8_t *pixels, color background_color,
+              rectangular_node rectangulars, sphere_node spheres,
+              light_node lights,viewpoint *view,
+              int width, int height, int thread_num, int core_num)
+{
+    rayarg * r =  (rayargs *) malloc (sizeof(rayargs));
+    r->pixels = pixels;
+    r->background_color =  background_color;
+    r->rectangulars = rectangulars;
+    r->spheres = spheres;
+    r->lights = lights;
+    r->view = view;
+    r->width = width;
+    r->height = height;
+    r->thread_num = thread_num;
+    r->core_num = core_num;
+    return r;
 }
