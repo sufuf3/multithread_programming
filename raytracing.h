@@ -11,11 +11,11 @@
 
 typedef struct rayarg {
     uint8_t *pixels;
-    color background_color;
+    double *background_color;
     rectangular_node rectangulars;
     sphere_node spheres;
     light_node lights;
-    const viewpoint *view;
+    viewpoint *view;
     int  width;
     int height;
     int thread_num;
@@ -25,7 +25,7 @@ typedef struct rayarg {
 //void raytracing(uint8_t *pixels, color background_color,
 rayargs *ray(uint8_t *pixels, color background_color,
              rectangular_node rectangulars, sphere_node spheres,
-             light_node lights, const viewpoint *view,
+             light_node lights, viewpoint *view,
              int width, int height, int thread_num, int core_num);
 void raytracing( void * r);
 #endif
