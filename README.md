@@ -149,9 +149,54 @@ Each sample counts as 0.01 seconds.
   
 # 產生兩個 threads，讓兩個 threads 分別在同個 core 上執行。  
 ## 執行結果  
+```shell=
+# Rendering scene
+Done!
+Execution time of raytracing() : 32.390637 sec
+```
 ## gprof ./raytracing | less  
+```shell=
+
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  us/call  us/call  name    
+ 78.70     19.47    19.47  9809290     1.98     2.15  rayRectangularIntersection
+  6.27     21.02     1.55 49645244     0.03     0.03  dot_product
+  4.13     22.04     1.02 40442655     0.03     0.03  subtract_vector
+  2.22     22.59     0.55 22537646     0.02     0.02  multiply_vector
+  1.33     22.92     0.33 12715445     0.03     0.03  add_vector
+  1.29     23.24     0.32  3289895     0.10     6.93  ray_hit_object
+  1.17     23.53     0.29  9568179     0.03     0.13  raySphereIntersection
+  1.13     23.81     0.28 12659399     0.02     0.02  cross_product
+  0.89     24.03     0.22  7685164     0.03     0.03  normalize
+  0.63     24.19     0.16   718507     0.22    34.02  ray_color
+  0.44     24.30     0.11                             raytracing
+  0.36     24.39     0.09  3142197     0.03     0.03  multiply_vectors
+  0.34     24.47     0.09  1592888     0.05     0.28  localColor
+  0.18     24.52     0.05   911478     0.05     0.05  protect_color_overflow
+  0.16     24.56     0.04  1875176     0.02     0.02  idx_stack_empty
+  0.16     24.60     0.04   725362     0.06     0.26  rayConstruction
+  0.14     24.63     0.04  2704440     0.01     0.01  length
+  0.14     24.67     0.04  1459665     0.02     0.40  compute_specular_diffuse
+  0.12     24.70     0.03   915538     0.03     0.07  refraction
+  0.08     24.72     0.02  1829199     0.01     0.03  idx_stack_top
+  0.08     24.74     0.02   864624     0.02     0.02  idx_stack_push
+  0.04     24.75     0.01   867864     0.01     0.10  reflection
+  0.02     24.75     0.01                             delete_sphere_list
+  0.00     24.75     0.00   755853     0.00     0.00  idx_stack_init
+  0.00     24.75     0.00    65734     0.00     0.08  fresnel
+  0.00     24.75     0.00    22303     0.00     0.02  idx_stack_pop
+  0.00     24.75     0.00        2     0.00     0.08  calculateBasisVectors
+  0.00     24.75     0.00        2     0.00     0.00  ray
+```
 ## CPU  
+![](https://i.imgur.com/8ZMdrMT.png)  
+
 ## out.ppm  
+![](https://i.imgur.com/CQ4SrvE.png)  
+
   
   
 Ref: https://hackmd.io/s/rJbdOYQc-  
