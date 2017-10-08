@@ -28,4 +28,5 @@ rayargs *ray(uint8_t *pixels, color background_color,
              light_node lights, viewpoint *view,
              int width, int height, int thread_num, int core_num);
 void raytracing( void * r);
+void raytracing3( void * r);
 #endif

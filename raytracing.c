@@ -466,7 +466,47 @@ void raytracing(void * rayarg)
     rayargs * r = ( rayargs *) rayarg;
     point3 u, v, w, d;
     color object_color = { 0.0, 0.0, 0.0 };
-    COPY_POINT3(w, r->view->vpn);
+
+    /* calculate u, v, w */
+    calculateBasisVectors(u, v, w, r->view);
+
+    idx_stack stk;
+
+    int factor = sqrt(SAMPLES);
+    for (int j = r->thread_num; j < r->height/r->core_num*(r->thread_num+1); j++) {
+        for (int i = 0; i < r->width; i++) {
+            double R = 0, G = 0, B = 0;
+            /* MSAA */
+            for (int s = 0; s < SAMPLES; s++) {
+                idx_stack_init(&stk);
+                rayConstruction(d, u, v, w,
+                                i * factor + s / factor,
+                                j * factor + s % factor,
+                                r->view,
+                                r->width * factor, r->height * factor);
+                if (ray_color(r->view->vrp, 0.0, d, &stk, r->rectangulars, r->spheres,
+                              r->lights, object_color,
+                              MAX_REFLECTION_BOUNCES)) {
+                    R += object_color[0];
+                    G += object_color[1];
+                    B += object_color[2];
+                } else {
+                    R += r->background_color[0];
+                    G += r->background_color[1];
+                    B += r->background_color[2];
+                }
+                r->pixels[((i + (j * r->width)) * 3) + 0] = R * 255 / SAMPLES;
+                r->pixels[((i + (j * r->width)) * 3) + 1] = G * 255 / SAMPLES;
+                r->pixels[((i + (j * r->width)) * 3) + 2] = B * 255 / SAMPLES;
+            }
+        }
+    }
+}
+void raytracing3(void * rayarg)
+{
+    rayargs * r = ( rayargs *) rayarg;
+    point3 u, v, w, d;
+    color object_color = { 0.0, 0.0, 0.0 };
 
     /* calculate u, v, w */
     calculateBasisVectors(u, v, w, r->view);

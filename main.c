@@ -68,28 +68,25 @@ int main()
     /*This is a domain function for this program.
      * Please trace the parameter of it and create your threads to do the function*/
     if (input_status == 1) {
-        /*pthread_t * thread_num = ( pthread_t *) malloc ( 1 * sizeof( pthread_t));
+        pthread_t * thread_num = ( pthread_t *) malloc ( 1 * sizeof( pthread_t));
         rayargs** pr = (rayargs **) malloc( 1 * sizeof(  rayargs * ));
         for( int num = 0; num < 4; num++) {
-            printf("Acore: %d \n", num);
             pr[0] = ray(pixels, background,
-                               rectangulars, spheres, lights, &view, ROWS, COLS, num, 4);
+                        rectangulars, spheres, lights, &view, ROWS, COLS, num, 4);
             pthread_create(&thread_num[0], NULL, (void *) &raytracing, (void *) pr[0]);
-            printf("Bcore: %d \n", num);
             cpu_set_t cpus;
             CPU_ZERO(&cpus);
             CPU_SET(num, &cpus);
             pthread_setaffinity_np(thread_num[0], sizeof(cpu_set_t), &cpus);
-            printf("core: %d\n", num);
         }
-        pthread_join(thread_num[0], NULL);*/
+        pthread_join(thread_num[0], NULL);
     } else if (input_status == 2) {
         pthread_t * thread_num = ( pthread_t *) malloc ( 2 * sizeof( pthread_t));
         rayargs** pr = (rayargs **) malloc( 2 * sizeof(  rayargs * ));
         for( int num = 0; num < 2; num++) {
             pr[num] = ray(pixels, background,
                           rectangulars, spheres, lights, &view, ROWS, COLS, num, 2);
-            pthread_create(&thread_num[num], NULL, (void *) &raytracing, (void *) pr[num]);
+            pthread_create(&thread_num[num], NULL, (void *) &raytracing3, (void *) pr[num]);
             cpu_set_t cpus;
             CPU_ZERO(&cpus);
             CPU_SET(num, &cpus);
@@ -104,7 +101,7 @@ int main()
         for( int num = 0; num < 2; num++) {
             pr[num] = ray(pixels, background,
                           rectangulars, spheres, lights, &view, ROWS, COLS, num, 1+1);
-            pthread_create(&thread_num[num], NULL, (void *) &raytracing, (void *) pr[num]);
+            pthread_create(&thread_num[num], NULL, (void *) &raytracing3, (void *) pr[num]);
             cpu_set_t cpus;
             CPU_ZERO(&cpus);
             CPU_SET(0, &cpus);

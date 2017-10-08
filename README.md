@@ -98,9 +98,53 @@ Each sample counts as 0.01 seconds.
   
 # 只產生一個 thread，並讓 thread 在執行過程中切換 core 執行。  
 ## 執行結果  
+```shell=
+$ make run
+./raytracing
+# Rendering scene
+Done!
+Execution time of raytracing() : 30.387225 sec
+```
 ## gprof ./raytracing | less  
+```shell=
+
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 81.43     15.97    15.97 11388749     0.00     0.00  rayRectangularIntersection
+  4.26     16.80     0.84 57275589     0.00     0.00  dot_product
+  4.08     17.60     0.80 46737619     0.00     0.00  subtract_vector
+  2.07     18.01     0.41 25945470     0.00     0.00  multiply_vector
+  1.73     18.35     0.34 14669091     0.00     0.00  add_vector
+  1.12     18.57     0.22  8765205     0.00     0.00  normalize
+  1.07     18.78     0.21  3796251     0.00     0.00  ray_hit_object
+  1.07     18.99     0.21 14637101     0.00     0.00  cross_product
+  1.02     19.19     0.20 11388742     0.00     0.00  raySphereIntersection
+  0.36     19.26     0.07  3512032     0.00     0.00  multiply_vectors
+  0.36     19.33     0.07   834588     0.00     0.00  rayConstruction
+  0.26     19.38     0.05  1756019     0.00     0.00  compute_specular_diffuse
+  0.26     19.43     0.05  1756017     0.00     0.00  localColor
+  0.26     19.48     0.05        2     0.03     9.81  raytracing
+  0.20     19.52     0.04  3182497     0.00     0.00  length
+  0.15     19.55     0.03  2091284     0.00     0.00  idx_stack_top
+  0.15     19.58     0.03   834588     0.00     0.00  ray_color
+  0.05     19.59     0.01  2121403     0.00     0.00  idx_stack_empty
+  0.05     19.60     0.01  1030586     0.00     0.00  protect_color_overflow
+  0.05     19.61     0.01  1030582     0.00     0.00  refraction
+  0.05     19.62     0.01   834589     0.00     0.00  idx_stack_init
+  0.00     19.62     0.00  1030582     0.00     0.00  reflection
+  0.00     19.62     0.00  1000465     0.00     0.00  idx_stack_push
+  0.00     19.62     0.00    90777     0.00     0.00  fresnel
+  0.00     19.62     0.00    30118     0.00     0.00  idx_stack_pop
+  0.00     19.62     0.00        2     0.00     0.00  calculateBasisVectors
+```
 ## CPU  
+![](https://i.imgur.com/NOvDWW0.png)  
+註：這邊一直卡著無法變成巒峰狀的切換 CPU ，所以這邊透過修改 `raytracing.c` 這程式碼，變成讓 CPU 執行完自己的片斷後釋放該 CPU 的使用資源。可以清楚知道是透過 1->2->3->4 這樣進行的。  
 ## out.ppm  
+![](https://i.imgur.com/IaCYAvD.png)  
   
 # 產生兩個 threads，讓兩個 threads 分別在不同 core 上執行。  
 ## 執行結果  
@@ -109,7 +153,7 @@ $ make run
 ./raytracing
 # Rendering scene
 Done!
-Execution time of raytracing() : 25.096402 sec
+Execution time of raytracing() : 25.518011 sec
 ```
 ## gprof ./raytracing | less  
 ```shell=
@@ -143,7 +187,8 @@ Each sample counts as 0.01 seconds.
   0.08     12.04     0.01                             multiply_vector
 ```
 ## CPU  
-![](https://i.imgur.com/PyPXhJS.png)  
+![](https://i.imgur.com/NMZEuYU.png)  
+  
 ## out.ppm  
 ![](https://i.imgur.com/e1cOstx.png)  
   
@@ -152,7 +197,7 @@ Each sample counts as 0.01 seconds.
 ```shell=
 # Rendering scene
 Done!
-Execution time of raytracing() : 32.390637 sec
+Execution time of raytracing() : 25.273941 sec
 ```
 ## gprof ./raytracing | less  
 ```shell=
@@ -193,11 +238,11 @@ Each sample counts as 0.01 seconds.
 ```
 ## CPU  
 ![](https://i.imgur.com/8ZMdrMT.png)  
-
+  
 ## out.ppm  
 ![](https://i.imgur.com/CQ4SrvE.png)  
-
   
+# 分析 CPU 資源對於 raytracing 所產生的影響。  
   
 Ref: https://hackmd.io/s/rJbdOYQc-  
 https://hackmd.io/s/rks802qob  
