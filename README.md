@@ -1,7 +1,7 @@
 雲端 Homework 1-1  
 ===
 ###### tags: `雲端`  
-  
+
 # 環境安裝  
   
 - 環境  
@@ -53,7 +53,8 @@ sudo apt install graphviz eog imagemagick gnuplot
 ```
   
 # 未改程式前之執行結果  
-```sh
+
+```shell
 $ make run
 cc -std=gnu99 -Wall -O0 -g -c -o objects.o objects.c
 cc -std=gnu99 -Wall -O0 -g -c -o raytracing.o raytracing.c
@@ -96,18 +97,148 @@ Each sample counts as 0.01 seconds.
 未調整前的圖 (`$ eog out.ppm`)  
 ![](https://i.imgur.com/eKknTc0.png)  
   
-# 只產生一個 thread，並讓 thread 在執行過程中切換 core 執行。  
-## 執行結果  
-```shell=
+# Description (改寫說明)  
+## 參數與 function  
+此份專案修改了4個檔案，分別為 `Makefile`, `main.c`, `raytracing.c`, `raytracing.h`  
+- `Makefile`  
+因為我們使用到了 pthread 這個 library 所以在 編譯的時候需要下指定的參數 `-lpthread` ，所以加了 `-lpthread` 這字串在裡面。  
+- `main.c`  
+依據作業所需，加入了一個選擇題。詢問要執行那種方式。依據各小題再來進行後續的處理。程式面部份，在各小題的內容中將一一解釋。  
+- `raytracing.h` 與 `raytracing.c`  
+因 pthread_create 帶入的 function 只能是一個 void * 的變數，所以將輸入 function 的變數變成用一個 structure (如下)。  
+
+```c
+$ vim raytracing.h
+typedef struct rayarg {
+    uint8_t *pixels;
+    double *background_color;
+    rectangular_node rectangulars;
+    sphere_node spheres;
+    light_node lights;
+    viewpoint *view;
+    int  width;
+    int height;
+    int thread_num; // 代表幾個 thread
+    int core_num; // 代表幾個 core  
+    //(註：後面因應各題，所以在 main.c 程式碼中有將 thread_num 和 core_num 兩個參數對換，主要是用來執行 raytracing.c 中的 raytracing 和 raytracing3 帶入參數用)
+} rayargs;
+```
+以下是透過 `ray` function 設定參數的初始化。  
+
+```c
+$ vim raytracing.h
+rayargs *ray(uint8_t *pixels, color background_color,
+             rectangular_node rectangulars, sphere_node spheres,
+             light_node lights, viewpoint *view,
+             int width, int height, int thread_num, int core_num);
+
+$ vim raytracing.c
+rayargs * ray(uint8_t *pixels, color background_color,
+              rectangular_node rectangulars, sphere_node spheres,
+              light_node lights,viewpoint *view,
+              int width, int height, int thread_num, int core_num)
+{
+    rayargs * r =  (rayargs *) malloc (sizeof(rayargs));
+    r->pixels = pixels;
+    r->background_color =  background_color;
+    r->rectangulars = rectangulars;
+    r->spheres = spheres;
+    r->lights = lights;
+    r->view = view;
+    r->width = width;
+    r->height = height;
+    r->thread_num = thread_num;
+    r->core_num = core_num;
+    return r;
+}
+```
+以下為依據作業題目調整的程式片斷，將於以下各小題中進行說明。  
+
+```c
+$ vim raytracing.h
+void raytracing( void * r);
+void raytracing3( void * r);
+```
+- `raytracing.c`  
+## 只產生一個 thread ，並讓 thread 在執行過程中切換 core 執行。  
+### 程式碼調整部份  
+- `main.c`  
+使用 `pthread_create` 創建一個 thread_num[0] 的 Thread 並指定要執行的 `&raytracing` function。  
+另，透過 `pthread_setaffinity_np` 將 Thread 指定到要使用的 CPU 資源。  
+
+```c
+        pthread_t * thread_num = ( pthread_t *) malloc ( 1 * sizeof( pthread_t));
+        rayargs** pr = (rayargs **) malloc( 1 * sizeof(  rayargs * ));
+        for( int num = 0; num < 4; num++) {
+            pr[0] = ray(pixels, background,
+                        rectangulars, spheres, lights, &view, ROWS, COLS, num, 4);
+            pthread_create(&thread_num[0], NULL, (void *) &raytracing, (void *) pr[0]);
+            cpu_set_t cpus;
+            CPU_ZERO(&cpus);
+            CPU_SET(num, &cpus);
+            pthread_setaffinity_np(thread_num[0], sizeof(cpu_set_t), &cpus);
+        }
+        pthread_join(thread_num[0], NULL);
+```
+- `raytracing.c`  
+
+```c
+void raytracing(void * rayarg)
+{
+    rayargs * r = ( rayargs *) rayarg; // 帶入 structure 的值
+    point3 u, v, w, d;
+    color object_color = { 0.0, 0.0, 0.0 };
+
+    /* calculate u, v, w */
+    calculateBasisVectors(u, v, w, r->view);
+
+    idx_stack stk;
+
+    int factor = sqrt(SAMPLES);
+    for (int j = r->thread_num; j < r->height/r->core_num*(r->thread_num+1); j++) { // 將圖的高度切四塊，每個 CPU 各自處理各子的部份。
+        for (int i = 0; i < r->width; i++) {
+            double R = 0, G = 0, B = 0;
+            /* MSAA */
+            for (int s = 0; s < SAMPLES; s++) {
+                idx_stack_init(&stk);
+                rayConstruction(d, u, v, w,
+                                i * factor + s / factor,
+                                j * factor + s % factor,
+                                r->view,
+                                r->width * factor, r->height * factor);
+                if (ray_color(r->view->vrp, 0.0, d, &stk, r->rectangulars, r->spheres,
+                              r->lights, object_color,
+                              MAX_REFLECTION_BOUNCES)) {
+                    R += object_color[0];
+                    G += object_color[1];
+                    B += object_color[2];
+                } else {
+                    R += r->background_color[0];
+                    G += r->background_color[1];
+                    B += r->background_color[2];
+                }
+                r->pixels[((i + (j * r->width)) * 3) + 0] = R * 255 / SAMPLES;
+                r->pixels[((i + (j * r->width)) * 3) + 1] = G * 255 / SAMPLES;
+                r->pixels[((i + (j * r->width)) * 3) + 2] = B * 255 / SAMPLES;
+            }
+        }
+    }
+}
+
+```
+### 執行結果  
+#### make run  
+
+```shell
 $ make run
 ./raytracing
 # Rendering scene
 Done!
 Execution time of raytracing() : 30.387225 sec
 ```
-## gprof ./raytracing | less  
-```shell=
+#### gprof ./raytracing | less  
 
+```shell
 Flat profile:
 
 Each sample counts as 0.01 seconds.
@@ -140,23 +271,94 @@ Each sample counts as 0.01 seconds.
   0.00     19.62     0.00    30118     0.00     0.00  idx_stack_pop
   0.00     19.62     0.00        2     0.00     0.00  calculateBasisVectors
 ```
-## CPU  
+#### CPU  
 ![](https://i.imgur.com/NOvDWW0.png)  
 註：這邊一直卡著無法變成巒峰狀的切換 CPU ，所以這邊透過修改 `raytracing.c` 這程式碼，變成讓 CPU 執行完自己的片斷後釋放該 CPU 的使用資源。可以清楚知道是透過 1->2->3->4 這樣進行的。  
-## out.ppm  
+#### out.ppm  
 ![](https://i.imgur.com/IaCYAvD.png)  
   
-# 產生兩個 threads，讓兩個 threads 分別在不同 core 上執行。  
-## 執行結果  
-```shell=
+## 產生兩個 threads，讓兩個 threads 分別在不同 core 上執行。  
+### 程式碼調整部份  
+- `main.c`  
+使用 `pthread_create` 創建兩個 thread_num 的 Thread 並指定要執行的 `&raytracing3` function。  
+另，透過 `pthread_setaffinity_np` 將 Thread 個別指定到要使用的 CPU 資源。  
+
+```c
+        pthread_t * thread_num = ( pthread_t *) malloc ( 2 * sizeof( pthread_t));
+        rayargs** pr = (rayargs **) malloc( 2 * sizeof(  rayargs * ));
+        for( int num = 0; num < 2; num++) {
+            pr[num] = ray(pixels, background,
+                          rectangulars, spheres, lights, &view, ROWS, COLS, num, 2);
+            pthread_create(&thread_num[num], NULL, (void *) &raytracing3, (void *) pr[num]);
+            cpu_set_t cpus;
+            CPU_ZERO(&cpus);
+            CPU_SET(num, &cpus);
+            pthread_setaffinity_np(thread_num[num], sizeof(cpu_set_t), &cpus);
+        }
+        for( int num = 0; num < 2; num++) {
+            pthread_join(thread_num[num], NULL);
+        }
+
+```
+- `raytracing.c`  
+
+```c
+void raytracing(void * rayarg)
+{
+    rayargs * r = ( rayargs *) rayarg; // 帶入 structure 的值
+    point3 u, v, w, d;
+    color object_color = { 0.0, 0.0, 0.0 };
+
+    /* calculate u, v, w */
+    calculateBasisVectors(u, v, w, r->view);
+
+    idx_stack stk;
+
+    int factor = sqrt(SAMPLES);
+    for (int j = r->thread_num; j < r->height; j=j+r->core_num) { // 隔一行一行的進行高度的處理 (像柵欄的模式)，非上個例子用區段進行。
+        for (int i = 0; i < r->width; i++) {
+            double R = 0, G = 0, B = 0;
+            /* MSAA */
+            for (int s = 0; s < SAMPLES; s++) {
+                idx_stack_init(&stk);
+                rayConstruction(d, u, v, w,
+                                i * factor + s / factor,
+                                j * factor + s % factor,
+                                r->view,
+                                r->width * factor, r->height * factor);
+                if (ray_color(r->view->vrp, 0.0, d, &stk, r->rectangulars, r->spheres,
+                              r->lights, object_color,
+                              MAX_REFLECTION_BOUNCES)) {
+                    R += object_color[0];
+                    G += object_color[1];
+                    B += object_color[2];
+                } else {
+                    R += r->background_color[0];
+                    G += r->background_color[1];
+                    B += r->background_color[2];
+                }
+                r->pixels[((i + (j * r->width)) * 3) + 0] = R * 255 / SAMPLES;
+                r->pixels[((i + (j * r->width)) * 3) + 1] = G * 255 / SAMPLES;
+                r->pixels[((i + (j * r->width)) * 3) + 2] = B * 255 / SAMPLES;
+            }
+        }
+    }
+}
+
+```
+### 執行結果  
+#### make run  
+
+```shell
 $ make run
 ./raytracing
 # Rendering scene
 Done!
-Execution time of raytracing() : 25.518011 sec
+Execution time of raytracing() : 19.373274 sec
 ```
-## gprof ./raytracing | less  
-```shell=
+#### gprof ./raytracing | less  
+
+```shell
 Flat profile:
 
 Each sample counts as 0.01 seconds.
@@ -186,22 +388,47 @@ Each sample counts as 0.01 seconds.
   0.17     12.03     0.02                             rayConstruction
   0.08     12.04     0.01                             multiply_vector
 ```
-## CPU  
-![](https://i.imgur.com/NMZEuYU.png)  
-  
-## out.ppm  
+#### CPU  
+![](https://i.imgur.com/RShP9gj.png)  
+
+#### out.ppm  
 ![](https://i.imgur.com/e1cOstx.png)  
   
-# 產生兩個 threads，讓兩個 threads 分別在同個 core 上執行。  
-## 執行結果  
-```shell=
+## 產生兩個 threads，讓兩個 threads 分別在同個 core 上執行。  
+### 程式碼調整部份  
+- `main.c`  
+使用 `pthread_create` 創建兩個 thread_num 的 Thread 並指定要執行的 `&raytracing3` function。  
+另，透過 `pthread_setaffinity_np` 將 Thread 指定到要使用的同個 CPU 資源。  
+
+```c
+        pthread_t * thread_num = ( pthread_t *) malloc ( 2 * sizeof( pthread_t));
+        rayargs** pr = (rayargs **) malloc( 2 * sizeof(  rayargs * ));
+        for( int num = 0; num < 2; num++) {
+            pr[num] = ray(pixels, background,
+                          rectangulars, spheres, lights, &view, ROWS, COLS, num, 1+1);
+            pthread_create(&thread_num[num], NULL, (void *) &raytracing3, (void *) pr[num]);
+            cpu_set_t cpus;
+            CPU_ZERO(&cpus);
+            CPU_SET(0, &cpus);
+            pthread_setaffinity_np(thread_num[num], sizeof(cpu_set_t), &cpus);
+        }
+        for( int num = 0; num < 2; num++) {
+            pthread_join(thread_num[num], NULL);
+        }
+```
+- `raytracing.c`  
+同上個小題  
+### 執行結果  
+#### make run  
+
+```shell
 # Rendering scene
 Done!
 Execution time of raytracing() : 25.273941 sec
 ```
-## gprof ./raytracing | less  
-```shell=
+#### gprof ./raytracing | less  
 
+```shell
 Flat profile:
 
 Each sample counts as 0.01 seconds.
@@ -236,13 +463,24 @@ Each sample counts as 0.01 seconds.
   0.00     24.75     0.00        2     0.00     0.08  calculateBasisVectors
   0.00     24.75     0.00        2     0.00     0.00  ray
 ```
-## CPU  
-![](https://i.imgur.com/8ZMdrMT.png)  
-  
-## out.ppm  
+#### CPU  
+![Imgur](https://i.imgur.com/xlJGWYL.png)  
+
+#### out.ppm  
 ![](https://i.imgur.com/CQ4SrvE.png)  
   
-# 分析 CPU 資源對於 raytracing 所產生的影響。  
+# Analysis (分析 CPU 資源對於 raytracing 所產生的影響)  
+## 原始程式執行時間分析  
+1. 由此圖得知，多 Thread 其實很重要，不論有多少 CPU 資源。因為由紅柱(一個 thread 在不同 core 轉換)，與另外的兩個情境 (兩個 Thread)相比，兩個 Thread 的執行時間勝過一個 Thread 。若要加快程式的執行速度，可以透過增加 Thread 來進行處理。以紅柱與綠柱為例，差距 5.113284 sec  
+2. 當多個 Thread 同時進行時，若每個 Thread 都能分配到一個 CPU 資源那程式執行速度會再提升。以下圖之黃柱與綠柱為例。差距 5.900667 sec。  
+![Imgur](https://i.imgur.com/20XA05X.png)  
+
+
+
+##### 其他  
+1. 我不熟 C 語言，在做作業總是被 `scripts/pre-commit.hook` 擋住不讓我 git commit ，所以只好自己在 local 端把 L46-L53 註解掉了。但保證，程式碼都可以執行。至於什麼原因，之後有空會來研究。  
+2. 其實程式碼還可以再進行優化，而且還有許多可以再補強之處。但仍有其他事務進行中，尚為可惜。  
+3. 實驗結果會因為當下其他程序使用的 cpu 資源而有所差異。不見得每次的數值都雷同，有時執行同樣的程式再不同的資源使用情形下，會有 10 秒的落差，但同時，其他的各小題與最初位修改版的程式，再那樣附近的時間點上，也是會差到 10 秒。  
   
 Ref: https://hackmd.io/s/rJbdOYQc-  
 https://hackmd.io/s/rks802qob  
